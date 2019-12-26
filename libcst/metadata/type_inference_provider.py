@@ -1,17 +1,42 @@
-from typing import Optional
+# Copyright (c) Facebook, Inc. and its affiliates.
+#
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory of this source tree.
+
+# pyre-strict
+
+from typing import Dict, List, Optional, Tuple
+
+from mypy_extensions import TypedDict
 
 import libcst as cst
 from libcst import BatchableMetadataProvider
 from libcst.metadata import PositionProvider
 
 
+class Position(TypedDict):
+    line: int
+    column: int
+
+
+class Location(TypedDict):
+    path: str
+    start: Position
+    stop: Position
+
+
+class InferredType(TypedDict):
+    location: Location
+    annotation: str
+
+
 class TypeInferenceProvider(BatchableMetadataProvider[str]):
     METADATA_DEPENDENCIES = (PositionProvider,)
     is_cache_required = True
 
-    def __init__(self, cache: object):
+    def __init__(self, cache: List[InferredType]) -> None:
         super().__init__(cache)
-        lookup = {}
+        lookup: Dict[Tuple[int, int, int, int], str] = {}
         for item in cache:
             location = item["location"]
             start = location["start"]
@@ -19,7 +44,7 @@ class TypeInferenceProvider(BatchableMetadataProvider[str]):
             lookup[(start["line"], start["column"], end["line"], end["column"])] = item[
                 "annotation"
             ]
-        self.lookup = lookup
+        self.lookup: Dict[Tuple[int, int, int, int], str] = lookup
 
     def _parse_metadata(self, node: cst.CSTNode) -> None:
         range = self.get_metadata(PositionProvider, node)
